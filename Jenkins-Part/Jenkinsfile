@@ -70,13 +70,6 @@ pipeline {
     }
 
     stages {
-        stage('Clone Repository') {
-            steps {
-                deleteDir()
-                git 'https://github.com/MuhanedAhmed/test'
-            }
-        }
-
         stage('Build with Maven') {
             steps {
                 dir('Source-Code') {
