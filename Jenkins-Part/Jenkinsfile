@@ -1,62 +1,121 @@
-pipeline{
+// pipeline{
     
-  agent any
+//   agent any
   
-  stages{
+//   stages{
       
-    stage('Build Maven Project'){
+//     stage('Build Maven Project'){
 
-      steps{
+//       steps{
           
-        script{
+//         script{
 
-          dir('Source-Code') {
-              withMaven(maven: 'Maven 3') {
-                  sh 'mvn clean package'
-              }
-          }
-        }
-      }
-    }
+//           dir('Source-Code') {
+//               withMaven(maven: 'Maven 3') {
+//                   sh 'mvn clean package'
+//               }
+//           }
+//         }
+//       }
+//     }
         
         
-    stage('Build th Docker Image'){
+//     stage('Build th Docker Image'){
 
-      steps{
+//       steps{
 
-        dir('Docker-Part'){
+//         dir('Docker-Part'){
 
-          sh "docker build . -t mohanedahmed/petclinic-app:latest"
-          withCredentials([usernamePassword(credentialsId: 'myDockerHub', passwordVariable: 'pass', usernameVariable: 'user')]) {
-            sh "docker login -u $user -p $pass"
-            sh "docker push mohanedahmed/petclinic-app:latest"
-          }  
-        }
-      }            
-    }
+//           sh "docker build . -t mohanedahmed/petclinic-app:latest"
+//           withCredentials([usernamePassword(credentialsId: 'myDockerHub', passwordVariable: 'pass', usernameVariable: 'user')]) {
+//             sh "docker login -u $user -p $pass"
+//             sh "docker push mohanedahmed/petclinic-app:latest"
+//           }  
+//         }
+//       }            
+//     }
       
 
-    stage('Deploy using Docker-Compose'){
+//     stage('Deploy using Docker-Compose'){
 
-      steps{
+//       steps{
 
-        dir('Docker-Part') {
-            sh 'docker-compose down'
-            sh 'docker-compose up -d'
-        }
-      }     
+//         dir('Docker-Part') {
+//             sh 'docker-compose down'
+//             sh 'docker-compose up -d'
+//         }
+//       }     
+//     }
+//   }
+
+//   post {
+//         always {
+//             archiveArtifacts artifacts: 'Source-Code/target/*.jar', allowEmptyArchive: true
+//             cleanWs()
+//         }
+//         failure {
+//             mail to: 'manoahmad97@gmail.com',
+//                  subject: 'Jenkins Build Failed: PetClinic',
+//                  body: 'The build has failed. Please check the Jenkins logs.'
+//         }
+//     }
+// }
+
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "spring-petclinic"
+        IMAGE_TAG = "latest"
     }
-  }
 
-  post {
+    stages {
+        stage('Clone Repository') {
+            steps {
+                deleteDir()
+                git 'https://github.com/MuhanedAhmed/test'
+            }
+        }
+
+        stage('Build with Maven') {
+            steps {
+                dir('Source-Code') {
+                    echo "Building the application with Maven..."
+                    sh './mvnw clean package -DskipTests'
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir('Docker-Part') {
+                    echo "Building Docker image..."
+                    sh 'cp ../Source-Code/target/spring-petclinic-*.jar app.jar'
+                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                }
+            }
+        }
+
+        stage('Run with Docker Compose') {
+            steps {
+                dir('Docker-Part') {
+                    echo "Running docker-compose..."
+                    sh 'docker-compose up -d'
+                }
+            }
+        }
+    }
+
+    post {
         always {
-            archiveArtifacts artifacts: 'Source-Code/target/*.jar', allowEmptyArchive: true
+            echo 'Pipeline completed - cleaning up'
             cleanWs()
         }
+        success {
+            echo "Pipeline executed successfully."
+        }
         failure {
-            mail to: 'manoahmad97@gmail.com',
-                 subject: 'Jenkins Build Failed: PetClinic',
-                 body: 'The build has failed. Please check the Jenkins logs.'
+            echo "Pipeline failed. Check the logs."
         }
     }
 }
