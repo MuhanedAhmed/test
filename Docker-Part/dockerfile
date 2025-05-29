@@ -1,0 +1,12 @@
+# Build stage
+FROM eclipse-temurin:21-jdk-jammy as builder
+WORKDIR /app
+COPY . .
+RUN ./mvnw clean package
+
+# Runtime stage
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+COPY --from=builder /app/target/spring-petclinic-*.jar app.jar
+EXPOSE 8888
+ENTRYPOINT ["java", "-jar","-Dspring.profiles.active=mysql", "app.jar"]
