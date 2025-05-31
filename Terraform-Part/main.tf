@@ -46,19 +46,39 @@ module "security_groups" {
 }
 
 # --------------------------------------------------------------
+# Creating SSH keys
+# --------------------------------------------------------------
+resource "tls_private_key" "EC2_generated_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "generated_key" {
+  key_name   = "ansible-key"
+  public_key = tls_private_key.EC2_generated_key.public_key_openssh
+}
+
+resource "local_file" "private_key_pem" {
+  content  = tls_private_key.EC2_generated_key.private_key_pem
+  filename = pathexpand("~/.ssh/ansible-key.pem")
+  file_permission = "0600"
+}
+
+# --------------------------------------------------------------
 # Creating EC2 Servers
 # --------------------------------------------------------------
 
 module "ec2_servers" {
   source            = "./Modules/EC2"
   instance_ami      = var.instance_ami
-  instance_key_pair = var.instance_key_pair
+  instance_key_pair = aws_key_pair.generated_key.key_name
   instances = {
     jenkins = {
       instance_subnet_id  = module.main_VPC.public_subnet_IDs["public_subnet_1"]
       instance_private_ip = "10.10.10.10"
       has_public_ip       = true
       security_group_ids  = [module.security_groups.jenkins_sg_id, module.security_groups.allow_all_egress_sg_id]
+      user_data           = file("${path.module}/../Scripts/install_ansible.sh")
     }
     backend_server_1 = {
       instance_subnet_id  = module.main_VPC.private_subnet_IDs["private_subnet_3"]

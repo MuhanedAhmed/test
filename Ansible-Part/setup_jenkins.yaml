@@ -1,0 +1,9 @@
+- name: Tasks related to the jenkins server
+  hosts: Jenkins-Server
+  gather_facts: true
+  roles:
+    - role: jenkins
+      tags: jenkins
+    
+    - role: maven
+      tags: maven

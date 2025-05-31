@@ -1,4 +1,7 @@
+#SPDX-License-Identifier: MIT-0
 ---
+# tasks file for jenkins
+
 - name: Add Jenkins Repo
   ansible.builtin.shell:
     cmd: |
@@ -31,7 +34,7 @@
     name: jenkins
     state: latest
   when: check_java.changed == true
-  register: ckeck_jenkins
+  register: check_jenkins
 
 
 - name: Start service jenkins and enable it
@@ -39,4 +42,4 @@
     name: jenkins
     state: started
     enabled: yes
-  when: ckeck_jenkins.changed == true
+  when: check_jenkins.changed == true

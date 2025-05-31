@@ -1,0 +1,9 @@
+- name: Tasks related to the backend servers
+  hosts: Backend-Servers
+  gather_facts: true
+  roles:
+    - role: docker
+      tags: docker
+
+    - role: app_deployment
+      tags: app_deployment

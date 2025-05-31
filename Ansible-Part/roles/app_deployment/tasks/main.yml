@@ -1,0 +1,22 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for app_deployment
+
+- name: Pull the app image from Docker Hub
+  community.docker.docker_image:
+    name: "{{ docker_image }}"
+    
+- name: Create a new app container
+  community.docker.docker_container:
+    name: petclinic-web
+    image: "{{ docker_image }}"
+    state: started
+    recreate: true
+    restart_policy: always
+    ports:
+     # Publish container port 8080 as host port 80
+      - "80:8080"
+    env:
+      MYSQL_URL: "jdbc:mysql://{{ rds_endpoint }}:3306/petclinic"
+      MYSQL_USER: "petclinic"
+      MYSQL_PASS: "petclinic"

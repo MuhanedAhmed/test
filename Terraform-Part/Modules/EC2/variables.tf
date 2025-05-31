@@ -8,6 +8,7 @@ variable "instances" {
     instance_private_ip = string
     security_group_ids  = list(string)
     has_public_ip       = optional(bool, false)
+    user_data           = optional(string)
   }))
 
   description = "Map of EC2 instance configurations"

@@ -1,58 +1,83 @@
 #!/bin/bash
 set -e  # Exit on error
 
+# Define color codes
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+NC='\033[0m' 
+
 # Configuration
-KEY_NAME="ansible-key"
-KEY_FILE="${KEY_NAME}.pem"
-TF_VARS_FILE="terraform.tfvars"
-ANSIBLE_DIR="./ansible"
-JENKINS_USER="ec2-user"
+KEY_FILE="$HOME/.ssh/ansible-key.pem"
+TERRAFORM_DIR="./Terraform-Part"
+ANSIBLE_DIR="./Ansible-Part"
+SSH_USER="ubuntu"
 
-# Step 1: Create AWS Key Pair
-echo "Creating AWS Key Pair..."
-aws ec2 create-key-pair --key-name $KEY_NAME --query 'KeyMaterial' --output text > $KEY_FILE
-chmod 400 $KEY_FILE
 
-# Step 2: Set Key Name as TF Environment Variable
-echo "Setting Terraform variables..."
-export TF_VAR_instance_key_pair=$KEY_NAME
-cat > $TF_VARS_FILE <<EOF
-instance_key_pair = "$KEY_NAME"
-EOF
+echo -e "${GREEN}"
+echo "========================================================"
+echo "     Welcome to the PetClinic Infrastructure Setup!     "
+echo "========================================================"
+echo -e "${NC}"
 
-# Step 3: Run Terraform
+# Step 1: Run Terraform
+echo -e "${BLUE}"
+echo -e "\n[1/5] Provisioning infrastructure with Terraform..."
+echo -e "${NC}"
+cd "$TERRAFORM_DIR"
 echo "Initializing Terraform..."
 terraform init
 echo "Applying Terraform configuration..."
-terraform apply -auto-approve
+terraform apply --auto-approve
 
-# Get Jenkins Public IP from Terraform output
-JENKINS_IP=$(terraform output -raw jenkins_public_ip)
-echo "Jenkins Server IP: $JENKINS_IP"
 
-# Wait for Jenkins server to be ready
-echo "Waiting for Jenkins server to be ready..."
-sleep 30  # Simple wait - consider implementing proper health check
+# Step 2: Get important info from Terraform output
+JENKINS_PUBLIC_IP=$(terraform output -raw Jenkins_Public_IP)
+RDS_ENDPOINT=$(terraform output -raw RDS_Endpoint)
+ALB_DNS=$(terraform output -raw EXT_ALB_DNS)
+cd - > /dev/null
 
-# Step 4: Copy Key to Jenkins Server
-echo "Copying SSH key to Jenkins server..."
-scp -o StrictHostKeyChecking=no -i $KEY_FILE $KEY_FILE $JENKINS_USER@$JENKINS_IP:~/.ssh/
-ssh -o StrictHostKeyChecking=no -i $KEY_FILE $JENKINS_USER@$JENKINS_IP "chmod 600 ~/.ssh/$KEY_FILE"
 
-# Step 5: Install Ansible on Jenkins Server
-echo "Installing Ansible on Jenkins server..."
-ssh -i $KEY_FILE $JENKINS_USER@$JENKINS_IP "sudo amazon-linux-extras install -y ansible2"
+# Step 3: Copy Key to Jenkins Server
+echo -e "${BLUE}"
+echo -e "\n[2/5] Copying SSH private key to Jenkins server..."
+echo -e "${NC}"
+scp -o StrictHostKeyChecking=no -i "$KEY_FILE" "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP:~/.ssh/ansible-key.pem"
+ssh -o StrictHostKeyChecking=no -i "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP" "chmod 600 ~/.ssh/ansible-key.pem"
 
-# Step 6: Copy Ansible Directory
-echo "Copying Ansible configuration to Jenkins server..."
-scp -r -i $KEY_FILE $ANSIBLE_DIR $JENKINS_USER@$JENKINS_IP:~/
 
-# Step 7: Run Ansible Playbooks
-echo "Running Ansible playbooks..."
-ssh -i $KEY_FILE $JENKINS_USER@$JENKINS_IP "cd ~/ansible && ansible-playbook -i inventory playbook.yml"
+# Step 4: Copy Ansible files to Jenkins Server
+echo -e "${BLUE}"
+echo -e "\n[3/5] Copying Ansible directory to Jenkins server"
+echo -e "${NC}"
+scp -i "$KEY_FILE" -r "$ANSIBLE_DIR" "$SSH_USER@$JENKINS_PUBLIC_IP:~/"
 
-# Cleanup (optional)
-echo "Cleaning up local key file..."
-rm -f $KEY_FILE
 
-echo "Infrastructure setup complete!"
+# Step 5: Run Ansible Playbooks
+echo -e "${BLUE}"
+echo -e "\n[4/5] Running Ansible Playbooks remotely on Jenkins server"
+echo -e "${NC}"
+ssh -i "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP" bash <<EOF
+  set -e
+
+  echo -e "\nRunning setup_jenkins.yaml"
+  cd ~/Ansible-Part
+  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory setup_jenkins.yaml
+
+  echo -e "\nRunning setup_backend.yaml"
+  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory setup_backend.yaml --tags docker
+EOF
+
+
+# Step 6: Get Jenkins Credentials
+echo -e "${BLUE}"
+echo -e "\n[5/5] Getting Jenkins Credentials from Jenkins server"
+echo -e "${NC}"
+JENKINS_PASS=$(ssh -o StrictHostKeyChecking=no -i "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP" "sudo cat /var/lib/jenkins/secrets/initialAdminPassword")
+
+echo -e "\n\n===================================================================================\n\n"
+
+echo -e "${GREEN}"
+echo -e "\nAll tasks completed successfully!"
+echo -e "${NC}"
+echo -e "\nNow, open jenkins at http://$JENKINS_PUBLIC_IP:8080 with password '$JENKINS_PASS' and create the job."
+echo -e "\nAfter the execution of the pipeline, access the application from http://$ALB_DNS:80"

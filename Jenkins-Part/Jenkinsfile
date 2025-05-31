@@ -1,53 +1,3 @@
-// pipeline{
-    
-//   agent any
-  
-//   stages{
-      
-//     stage('Build Maven Project'){
-
-//       steps{
-          
-//         script{
-
-//           dir('Source-Code') {
-//               withMaven(maven: 'Maven 3') {
-//                   sh 'mvn clean package'
-//               }
-//           }
-//         }
-//       }
-//     }
-        
-        
-//     stage('Build th Docker Image'){
-
-//       steps{
-
-//         dir('Docker-Part'){
-
-//           sh "docker build . -t mohanedahmed/petclinic-app:latest"
-//           withCredentials([usernamePassword(credentialsId: 'myDockerHub', passwordVariable: 'pass', usernameVariable: 'user')]) {
-//             sh "docker login -u $user -p $pass"
-//             sh "docker push mohanedahmed/petclinic-app:latest"
-//           }  
-//         }
-//       }            
-//     }
-      
-
-//     stage('Deploy using Docker-Compose'){
-
-//       steps{
-
-//         dir('Docker-Part') {
-//             sh 'docker-compose down'
-//             sh 'docker-compose up -d'
-//         }
-//       }     
-//     }
-//   }
-
 //   post {
 //         always {
 //             archiveArtifacts artifacts: 'Source-Code/target/*.jar', allowEmptyArchive: true
@@ -65,11 +15,20 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "spring-petclinic"
-        IMAGE_TAG = "latest"
+        IMAGE_NAME      = "mohanedahmed/spring-petclinic"
+        IMAGE_TAG       = "${env.BUILD_ID}"
+        RDS_ENDPOINT    = "<rds_endpoint>"
+        GITHUB_REPO     = "https://github.com/MuhanedAhmed/test"
     }
 
     stages {
+        stage('Checkout Repository') {
+            steps {
+                echo "Cloning the GitHub repository..."
+                git branch: 'main', url: '${env.GITHUB_REPO}'
+            }
+        }
+
         stage('Build with Maven') {
             steps {
                 dir('Source-Code') {
@@ -79,21 +38,30 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build & Push Docker Image') {
             steps {
                 dir('Docker-Part') {
                     echo "Building Docker image..."
                     sh 'cp ../Source-Code/target/spring-petclinic-*.jar app.jar'
-                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                    sh "docker build -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} ."
+
+                    echo "Logging into Docker Hub..."
+                    withCredentials([usernamePassword(credentialsId: 'myDockerHub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+                        sh "docker push ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                    }
                 }
             }
         }
 
-        stage('Run with Docker Compose') {
+        stage('Deploy Application with Ansible') {
             steps {
-                dir('Docker-Part') {
-                    echo "Running docker-compose..."
-                    sh 'docker compose up -d'
+                dir('Ansible-Part') {
+                    echo "Deploying application using Ansible..."
+                    sh """ansible-playbook -i inventory setup_backend.yml --tags app_deployment \
+                        -e docker_image='${env.IMAGE_NAME}:${env.IMAGE_TAG}' \
+                        -e rds_endpoint='${env.RDS_ENDPOINT}'
+                        """
                 }
             }
         }

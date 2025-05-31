@@ -9,3 +9,11 @@ output "instance_ids" {
     key => inst.id
   }
 }
+
+output "instance_public_ips" {
+  description = "Map of instance public IPs"
+  value = {
+    for key, inst in aws_instance.my_instance :
+    key => inst.public_ip
+  }
+}
