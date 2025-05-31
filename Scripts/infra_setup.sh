@@ -1,4 +1,11 @@
 #!/bin/bash
+
+# --------------------------------------------------------------------------------
+# Script: infra-setup.sh
+# Purpose: Automate provisioning infrastructure and deployment for PetClinic app
+# Author: Mohaned Ahmed
+# --------------------------------------------------------------------------------
+
 set -e  # Exit on error
 
 # Define color codes
@@ -72,7 +79,7 @@ EOF
 echo -e "${BLUE}"
 echo -e "\n[5/6] Copying SSH private key to Jenkins home directory..."
 echo -e "${NC}"
-ssh -i "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP" "sudo mv ~/.ssh/ansible-key.pem /var/lib/jenkins/.ssh/ansible-key.pem && sudo chown -R jenkins:jenkins /var/lib/jenkins/.ssh && sudo chmod 600 /var/lib/jenkins/.ssh/ansible-key.pem"
+ssh -i "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP" "sudo cp ~/.ssh/ansible-key.pem /var/lib/jenkins/.ssh/ansible-key.pem && sudo chown -R jenkins:jenkins /var/lib/jenkins/.ssh && sudo chmod 600 /var/lib/jenkins/.ssh/ansible-key.pem"
 
 
 # Step 7: Get Jenkins Credentials

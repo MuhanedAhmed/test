@@ -1,16 +1,3 @@
-//   post {
-//         always {
-//             archiveArtifacts artifacts: 'Source-Code/target/*.jar', allowEmptyArchive: true
-//             cleanWs()
-//         }
-//         failure {
-//             mail to: 'manoahmad97@gmail.com',
-//                  subject: 'Jenkins Build Failed: PetClinic',
-//                  body: 'The build has failed. Please check the Jenkins logs.'
-//         }
-//     }
-// }
-
 pipeline {
     agent any
 

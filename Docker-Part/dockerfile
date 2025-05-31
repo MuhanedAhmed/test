@@ -4,6 +4,6 @@ WORKDIR /app
 
 COPY app.jar app.jar
 
-EXPOSE 8888
+EXPOSE 8080
 
 ENTRYPOINT ["java", "-jar","-Dspring.profiles.active=mysql", "app.jar"]
