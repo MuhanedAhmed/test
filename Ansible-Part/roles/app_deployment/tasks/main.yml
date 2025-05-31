@@ -5,6 +5,7 @@
 - name: Pull the app image from Docker Hub
   community.docker.docker_image:
     name: "{{ docker_image }}"
+    source: pull
     
 - name: Create a new app container
   community.docker.docker_container:

@@ -21,7 +21,7 @@ echo -e "${NC}"
 
 # Step 1: Run Terraform
 echo -e "${BLUE}"
-echo -e "\n[1/5] Provisioning infrastructure with Terraform..."
+echo -e "\n[1/6] Provisioning infrastructure with Terraform..."
 echo -e "${NC}"
 cd "$TERRAFORM_DIR"
 echo "Initializing Terraform..."
@@ -39,7 +39,7 @@ cd - > /dev/null
 
 # Step 3: Copy Key to Jenkins Server
 echo -e "${BLUE}"
-echo -e "\n[2/5] Copying SSH private key to Jenkins server..."
+echo -e "\n[2/6] Copying SSH private key to Jenkins server..."
 echo -e "${NC}"
 scp -o StrictHostKeyChecking=no -i "$KEY_FILE" "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP:~/.ssh/ansible-key.pem"
 ssh -o StrictHostKeyChecking=no -i "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP" "chmod 600 ~/.ssh/ansible-key.pem"
@@ -47,14 +47,14 @@ ssh -o StrictHostKeyChecking=no -i "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP" "c
 
 # Step 4: Copy Ansible files to Jenkins Server
 echo -e "${BLUE}"
-echo -e "\n[3/5] Copying Ansible directory to Jenkins server"
+echo -e "\n[3/6] Copying Ansible directory to Jenkins server"
 echo -e "${NC}"
 scp -i "$KEY_FILE" -r "$ANSIBLE_DIR" "$SSH_USER@$JENKINS_PUBLIC_IP:~/"
 
 
 # Step 5: Run Ansible Playbooks
 echo -e "${BLUE}"
-echo -e "\n[4/5] Running Ansible Playbooks remotely on Jenkins server"
+echo -e "\n[4/6] Running Ansible Playbooks remotely on Jenkins server"
 echo -e "${NC}"
 ssh -i "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP" bash <<EOF
   set -e
@@ -68,9 +68,16 @@ ssh -i "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP" bash <<EOF
 EOF
 
 
-# Step 6: Get Jenkins Credentials
+# Step 6: Copy Key to Jenkins Directory
 echo -e "${BLUE}"
-echo -e "\n[5/5] Getting Jenkins Credentials from Jenkins server"
+echo -e "\n[5/6] Copying SSH private key to Jenkins home directory..."
+echo -e "${NC}"
+ssh -i "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP" "sudo mv ~/.ssh/ansible-key.pem /var/lib/jenkins/.ssh/ansible-key.pem && sudo chown -R jenkins:jenkins /var/lib/jenkins/.ssh && sudo chmod 600 /var/lib/jenkins/.ssh/ansible-key.pem"
+
+
+# Step 7: Get Jenkins Credentials
+echo -e "${BLUE}"
+echo -e "\n[6/6] Getting Jenkins Credentials from Jenkins server"
 echo -e "${NC}"
 JENKINS_PASS=$(ssh -o StrictHostKeyChecking=no -i "$KEY_FILE" "$SSH_USER@$JENKINS_PUBLIC_IP" "sudo cat /var/lib/jenkins/secrets/initialAdminPassword")
 

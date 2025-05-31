@@ -25,7 +25,7 @@ pipeline {
         stage('Checkout Repository') {
             steps {
                 echo "Cloning the GitHub repository..."
-                git branch: 'main', url: '${env.GITHUB_REPO}'
+                git branch: 'main', url: "${env.GITHUB_REPO}"
             }
         }
 
@@ -58,7 +58,7 @@ pipeline {
             steps {
                 dir('Ansible-Part') {
                     echo "Deploying application using Ansible..."
-                    sh """ansible-playbook -i inventory setup_backend.yml --tags app_deployment \
+                    sh """ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory setup_backend.yaml --tags app_deployment \
                         -e docker_image='${env.IMAGE_NAME}:${env.IMAGE_TAG}' \
                         -e rds_endpoint='${env.RDS_ENDPOINT}'
                         """
